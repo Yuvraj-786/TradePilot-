@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 
@@ -14,23 +14,23 @@ const useAuth = () => useContext(AuthContext);
 // ─────────────────────────────────────────────────────────────
 
 const MOCK_STOCKS = [
-  { symbol: 'AAPL',  name: 'Apple Inc.',       price: 189.84, change: 1.24,  pct: 0.66,  sector: 'Technology' },
-  { symbol: 'TSLA',  name: 'Tesla Inc.',        price: 242.60, change: -5.31, pct: -2.14, sector: 'Automotive' },
-  { symbol: 'NVDA',  name: 'NVIDIA Corp.',      price: 875.40, change: 18.75, pct: 2.19,  sector: 'Technology' },
-  { symbol: 'MSFT',  name: 'Microsoft Corp.',   price: 415.22, change: 3.11,  pct: 0.75,  sector: 'Technology' },
-  { symbol: 'AMZN',  name: 'Amazon.com Inc.',   price: 185.07, change: -1.85, pct: -0.99, sector: 'Consumer' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.',     price: 165.40, change: 2.30,  pct: 1.41,  sector: 'Technology' },
-  { symbol: 'META',  name: 'Meta Platforms',    price: 508.90, change: 7.44,  pct: 1.48,  sector: 'Technology' },
-  { symbol: 'RELIANCE', name: 'Reliance Ind.',  price: 2845.0, change: 32.5,  pct: 1.15,  sector: 'Energy' },
-  { symbol: 'TCS',   name: 'TCS Ltd.',          price: 3920.0, change: -18.0, pct: -0.46, sector: 'Technology' },
-  { symbol: 'INFY',  name: 'Infosys Ltd.',      price: 1785.0, change: 12.5,  pct: 0.71,  sector: 'Technology' },
+  { symbol: 'AAPL',     name: 'Apple Inc.',       price: 189.84, change: 1.24,  pct: 0.66,  sector: 'Technology' },
+  { symbol: 'TSLA',     name: 'Tesla Inc.',        price: 242.60, change: -5.31, pct: -2.14, sector: 'Automotive' },
+  { symbol: 'NVDA',     name: 'NVIDIA Corp.',      price: 875.40, change: 18.75, pct: 2.19,  sector: 'Technology' },
+  { symbol: 'MSFT',     name: 'Microsoft Corp.',   price: 415.22, change: 3.11,  pct: 0.75,  sector: 'Technology' },
+  { symbol: 'AMZN',     name: 'Amazon.com Inc.',   price: 185.07, change: -1.85, pct: -0.99, sector: 'Consumer'   },
+  { symbol: 'GOOGL',    name: 'Alphabet Inc.',     price: 165.40, change: 2.30,  pct: 1.41,  sector: 'Technology' },
+  { symbol: 'META',     name: 'Meta Platforms',    price: 508.90, change: 7.44,  pct: 1.48,  sector: 'Technology' },
+  { symbol: 'RELIANCE', name: 'Reliance Ind.',     price: 2845.0, change: 32.5,  pct: 1.15,  sector: 'Energy'     },
+  { symbol: 'TCS',      name: 'TCS Ltd.',          price: 3920.0, change: -18.0, pct: -0.46, sector: 'Technology' },
+  { symbol: 'INFY',     name: 'Infosys Ltd.',      price: 1785.0, change: 12.5,  pct: 0.71,  sector: 'Technology' },
 ];
 
 const MOCK_PORTFOLIO = [
-  { symbol: 'AAPL',  qty: 10, avgPrice: 175.00, currentPrice: 189.84 },
-  { symbol: 'NVDA',  qty: 5,  avgPrice: 820.00, currentPrice: 875.40 },
-  { symbol: 'TSLA',  qty: 8,  avgPrice: 260.00, currentPrice: 242.60 },
-  { symbol: 'MSFT',  qty: 12, avgPrice: 400.00, currentPrice: 415.22 },
+  { symbol: 'AAPL', qty: 10, avgPrice: 175.00, currentPrice: 189.84 },
+  { symbol: 'NVDA', qty: 5,  avgPrice: 820.00, currentPrice: 875.40 },
+  { symbol: 'TSLA', qty: 8,  avgPrice: 260.00, currentPrice: 242.60 },
+  { symbol: 'MSFT', qty: 12, avgPrice: 400.00, currentPrice: 415.22 },
 ];
 
 const MOCK_TRADES = [
@@ -53,27 +53,28 @@ const MOCK_CHART_DATA = Array.from({ length: 30 }, (_, i) => ({
 }));
 
 // ─────────────────────────────────────────────────────────────
-// ICONS (inline SVGs to avoid extra deps)
+// ICONS (inline SVGs)
 // ─────────────────────────────────────────────────────────────
 
 const Icon = {
-  Dashboard:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
-  Portfolio:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
-  Trade:      () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-  Watchlist:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-  AI:         () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1 0-6h1V6a4 4 0 0 1 4-4z"/></svg>,
-  Settings:   () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-  Logout:     () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  ArrowUp:    () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>,
-  ArrowDown:  () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>,
-  Menu:       () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
-  Sparkle:    () => <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>,
-  Plus:       () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  Bell:       () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  Dashboard: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
+  Portfolio: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  Trade:     () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+  Watchlist: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  AI:        () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1 0-6h1V6a4 4 0 0 1 4-4z"/></svg>,
+  Settings:  () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Logout:    () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  ArrowUp:   () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>,
+  ArrowDown: () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>,
+  Menu:      () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+  Sparkle:   () => <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>,
+  Plus:      () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  Bell:      () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  Close:     () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
 };
 
 // ─────────────────────────────────────────────────────────────
-// MINI LINE CHART (no recharts dependency)
+// SPARKLINE
 // ─────────────────────────────────────────────────────────────
 
 function SparkLine({ data, color = '#00d4ff', width = 80, height = 32 }) {
@@ -86,7 +87,7 @@ function SparkLine({ data, color = '#00d4ff', width = 80, height = 32 }) {
     return `${x},${y}`;
   }).join(' ');
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ flexShrink: 0 }}>
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
@@ -122,7 +123,7 @@ function TickerBar({ stocks }) {
 // ─────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
-  { to: '/dashboard', label: 'Dashboard', icon: 'Dashboard' },
+  { to: '/dashboard', label: 'Dashboard',  icon: 'Dashboard' },
   { to: '/portfolio', label: 'Portfolio',  icon: 'Portfolio' },
   { to: '/trade',     label: 'Trade',      icon: 'Trade'     },
   { to: '/watchlist', label: 'Watchlist',  icon: 'Watchlist' },
@@ -130,51 +131,65 @@ const NAV_LINKS = [
   { to: '/settings',  label: 'Settings',   icon: 'Settings'  },
 ];
 
-function Sidebar({ collapsed, onToggle, onLogout }) {
+function Sidebar({ collapsed, mobileOpen, onToggle, onClose, onLogout }) {
   return (
-    <nav className={`app-sidebar ${collapsed ? 'collapsed' : ''}`}>
-      {/* Logo */}
-      <div style={{ padding: '20px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: 'linear-gradient(135deg, var(--accent-cyan), #0099bb)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, fontFamily: 'var(--font-display)', fontWeight: 800,
-          fontSize: 14, color: '#080c14'
-        }}>TP</div>
-        {!collapsed && (
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em' }}>
-            Trade<span style={{ color: 'var(--accent-cyan)' }}>Pilot</span>
-          </span>
-        )}
-      </div>
+    <>
+      {/* Backdrop overlay for mobile */}
+      <div
+        className={`sidebar-backdrop ${mobileOpen ? 'active' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* Links */}
-      <div style={{ padding: '12px 8px', flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {NAV_LINKS.map(({ to, label, icon }) => {
-          const IconComp = Icon[icon];
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              title={collapsed ? label : undefined}
-            >
-              <span className="nav-icon"><IconComp /></span>
-              {!collapsed && <span>{label}</span>}
-            </NavLink>
-          );
-        })}
-      </div>
+      <nav className={`app-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+        {/* Logo */}
+        <div style={{ padding: '20px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: 'linear-gradient(135deg, var(--accent-cyan), #0099bb)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: 14, color: '#080c14'
+          }}>TP</div>
+          {!collapsed && (
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+              Trade<span style={{ color: 'var(--accent-cyan)' }}>Pilot</span>
+            </span>
+          )}
+        </div>
 
-      {/* Logout */}
-      <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border-subtle)' }}>
-        <button className="nav-item btn-ghost" style={{ width: '100%', border: 'none', background: 'transparent' }} onClick={onLogout}>
-          <span className="nav-icon"><Icon.Logout /></span>
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
-    </nav>
+        {/* Links */}
+        <div style={{ padding: '12px 8px', flex: 1, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+          {NAV_LINKS.map(({ to, label, icon }) => {
+            const IconComp = Icon[icon];
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                title={collapsed ? label : undefined}
+                onClick={onClose}
+              >
+                <span className="nav-icon"><IconComp /></span>
+                {!collapsed && <span>{label}</span>}
+              </NavLink>
+            );
+          })}
+        </div>
+
+        {/* Logout */}
+        <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+          <button
+            className="nav-item btn-ghost"
+            style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer' }}
+            onClick={onLogout}
+          >
+            <span className="nav-icon"><Icon.Logout /></span>
+            {!collapsed && <span>Logout</span>}
+          </button>
+        </div>
+      </nav>
+    </>
   );
 }
 
@@ -187,17 +202,19 @@ function Navbar({ onMenuToggle, user }) {
   const title = NAV_LINKS.find(l => location.pathname.startsWith(l.to))?.label || 'TradePilot';
   return (
     <header className="app-navbar flex-between">
-      <div className="flex gap-md items-center">
-        <button className="btn btn-icon btn-ghost" onClick={onMenuToggle}>
+      <div className="flex gap-md items-center" style={{ minWidth: 0 }}>
+        <button className="btn btn-icon btn-ghost" onClick={onMenuToggle} aria-label="Toggle sidebar" style={{ flexShrink: 0 }}>
           <Icon.Menu />
         </button>
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>{title}</h2>
-        <div className="flex items-center gap-xs" style={{ marginLeft: 4 }}>
+        <h2 style={{ fontSize: 'clamp(0.875rem, 2vw, 1rem)', fontWeight: 700, letterSpacing: '-0.01em', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {title}
+        </h2>
+        <div className="flex items-center gap-xs" style={{ marginLeft: 4, flexShrink: 0 }}>
           <span className="live-dot" />
           <span className="text-xs text-muted mono">LIVE</span>
         </div>
       </div>
-      <div className="flex items-center gap-md">
+      <div className="flex items-center gap-md" style={{ flexShrink: 0 }}>
         <button className="btn btn-icon btn-ghost" title="Notifications">
           <Icon.Bell />
         </button>
@@ -206,7 +223,7 @@ function Navbar({ onMenuToggle, user }) {
           background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-green))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 12, fontWeight: 700, color: '#080c14', cursor: 'pointer',
-          fontFamily: 'var(--font-display)'
+          fontFamily: 'var(--font-display)', flexShrink: 0
         }}>
           {user?.name?.[0]?.toUpperCase() || 'U'}
         </div>
@@ -219,15 +236,15 @@ function Navbar({ onMenuToggle, user }) {
 // STAT CARD
 // ─────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, change, pct, up, sparkData, accent = 'cyan' }) {
+function StatCard({ label, value, change, pct, up, sparkData }) {
   return (
     <div className="card fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <span className="stat-label">{label}</span>
       <span className="stat-value">{value}</span>
-      <div className="flex-between" style={{ marginTop: 4 }}>
-        <span className={`stat-change ${up ? 'price-up' : 'price-down'}`}>
+      <div className="flex-between" style={{ marginTop: 4, gap: 8 }}>
+        <span className={`stat-change ${up ? 'price-up' : 'price-down'}`} style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', minWidth: 0 }}>
           {up ? <Icon.ArrowUp /> : <Icon.ArrowDown />}
-          {' '}{change} ({pct})
+          <span style={{ whiteSpace: 'nowrap' }}>{change} ({pct})</span>
         </span>
         {sparkData && (
           <SparkLine data={sparkData} color={up ? 'var(--accent-green)' : 'var(--accent-red)'} />
@@ -276,9 +293,9 @@ function RiskRing({ score = 62, size = 80 }) {
 // ─────────────────────────────────────────────────────────────
 
 function PortfolioRow({ holding }) {
-  const pnl = (holding.currentPrice - holding.avgPrice) * holding.qty;
+  const pnl    = (holding.currentPrice - holding.avgPrice) * holding.qty;
   const pnlPct = ((holding.currentPrice - holding.avgPrice) / holding.avgPrice) * 100;
-  const up = pnl >= 0;
+  const up     = pnl >= 0;
   return (
     <tr>
       <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{holding.symbol}</td>
@@ -309,36 +326,33 @@ function Dashboard() {
 
   return (
     <div className="fade-in">
-      {/* Stats row */}
+      {/* Stats row — 4 cols on desktop, 2 on tablet, 1 on mobile */}
       <div className="grid grid-4 gap-md mb-lg stagger">
-        <StatCard label="Portfolio Value"  value={`₹${totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} change={`₹${Math.abs(totalPnL).toFixed(0)}`} pct={`${pnlPct.toFixed(2)}%`} up={totalPnL >= 0} sparkData={sparkUp}   />
-        <StatCard label="Virtual Balance"  value="₹28,640"   change="₹3,200" pct="11.2%"  up={true}  sparkData={sparkUp}   />
-        <StatCard label="Today's P&L"      value="₹+1,248"   change="₹1,248" pct="2.14%"  up={true}  sparkData={sparkUp}   />
-        <StatCard label="Total Trades"     value="24"         change="3"      pct="today"  up={true}  sparkData={sparkDown} />
+        <StatCard label="Portfolio Value" value={`₹${totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} change={`₹${Math.abs(totalPnL).toFixed(0)}`} pct={`${pnlPct.toFixed(2)}%`} up={totalPnL >= 0} sparkData={sparkUp} />
+        <StatCard label="Virtual Balance" value="₹28,640"  change="₹3,200" pct="11.2%" up={true}  sparkData={sparkUp}   />
+        <StatCard label="Today's P&L"     value="₹+1,248"  change="₹1,248" pct="2.14%" up={true}  sparkData={sparkUp}   />
+        <StatCard label="Total Trades"    value="24"        change="3"      pct="today" up={true}  sparkData={sparkDown} />
       </div>
 
-      {/* Main content */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 'var(--space-lg)' }}>
-
-        {/* Portfolio chart placeholder */}
+      {/* Main + aside — collapses to single column below 1100px */}
+      <div className="layout-main-aside">
+        {/* Portfolio chart */}
         <div className="card">
           <div className="card-header">
             <span className="card-title">Portfolio Growth</span>
             <span className="badge badge-cyan">30D</span>
           </div>
-          <div style={{ height: 200, display: 'flex', alignItems: 'flex-end', gap: 4, paddingTop: 8 }}>
+          <div style={{ height: 200, display: 'flex', alignItems: 'flex-end', gap: 3, paddingTop: 8 }}>
             {MOCK_CHART_DATA.slice(-20).map((d, i) => {
               const max = Math.max(...MOCK_CHART_DATA.map(x => x.value));
               const min = Math.min(...MOCK_CHART_DATA.map(x => x.value));
-              const h = ((d.value - min) / (max - min)) * 160 + 20;
+              const h   = ((d.value - min) / (max - min)) * 160 + 20;
               const isLast = i === 19;
               return (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: 200 }}>
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: 200, minWidth: 0 }}>
                   <div style={{
                     width: '100%', height: h,
-                    background: isLast
-                      ? 'var(--accent-cyan)'
-                      : `rgba(0,212,255,${0.15 + (i / 19) * 0.35})`,
+                    background: isLast ? 'var(--accent-cyan)' : `rgba(0,212,255,${0.15 + (i / 19) * 0.35})`,
                     borderRadius: '3px 3px 0 0',
                     transition: 'height 0.8s ease',
                     boxShadow: isLast ? 'var(--shadow-glow-cyan)' : 'none'
@@ -355,22 +369,16 @@ function Dashboard() {
 
         {/* Right panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          {/* Risk Score */}
           <div className="card">
-            <div className="card-header">
-              <span className="card-title">Risk Score</span>
-            </div>
+            <div className="card-header"><span className="card-title">Risk Score</span></div>
             <div className="flex-center" style={{ padding: '8px 0' }}>
               <RiskRing score={62} />
             </div>
           </div>
 
-          {/* AI Insight */}
           <div className="card">
             <div className="card-header">
-              <span className="card-title flex items-center gap-xs">
-                <Icon.Sparkle /> AI Insight
-              </span>
+              <span className="card-title"><Icon.Sparkle /> AI Insight</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {MOCK_AI_INSIGHTS.slice(0, 2).map(ins => (
@@ -390,12 +398,10 @@ function Dashboard() {
           <span className="card-title">Holdings</span>
           <span className="badge badge-muted">{MOCK_PORTFOLIO.length} positions</span>
         </div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="table-scroll">
           <table className="tp-table">
             <thead>
-              <tr>
-                <th>Symbol</th><th>Qty</th><th>Avg Price</th><th>LTP</th><th>P&amp;L</th><th>Value</th>
-              </tr>
+              <tr><th>Symbol</th><th>Qty</th><th>Avg Price</th><th>LTP</th><th>P&amp;L</th><th>Value</th></tr>
             </thead>
             <tbody>
               {MOCK_PORTFOLIO.map(h => <PortfolioRow key={h.symbol} holding={h} />)}
@@ -408,9 +414,11 @@ function Dashboard() {
 }
 
 function Portfolio() {
+  const totalPortfolio = MOCK_PORTFOLIO.reduce((s, h) => s + h.currentPrice * h.qty, 0);
+
   return (
     <div className="fade-in">
-      <div className="flex-between mb-lg">
+      <div className="flex-between mb-lg" style={{ flexWrap: 'wrap', gap: 'var(--space-md)' }}>
         <div>
           <h3 style={{ marginBottom: 4 }}>My Portfolio</h3>
           <p className="text-sm text-muted">Track all your virtual holdings and performance</p>
@@ -420,7 +428,7 @@ function Portfolio() {
       <div className="grid grid-4 gap-md mb-lg stagger">
         {[
           { label: 'Invested', value: '₹11,650', color: 'var(--text-primary)' },
-          { label: 'Current',  value: '₹13,248', color: 'var(--accent-cyan)' },
+          { label: 'Current',  value: '₹13,248', color: 'var(--accent-cyan)'  },
           { label: 'P&L',      value: '+₹1,598', color: 'var(--accent-green)' },
           { label: 'Return',   value: '+13.7%',  color: 'var(--accent-green)' },
         ].map(s => (
@@ -431,50 +439,48 @@ function Portfolio() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
+      <div className="layout-split">
         {/* Holdings */}
         <div className="card">
-          <div className="card-header">
-            <span className="card-title">Holdings</span>
-          </div>
-          <table className="tp-table">
-            <thead><tr><th>Stock</th><th>Qty</th><th>P&amp;L</th><th>Alloc</th></tr></thead>
-            <tbody>
-              {MOCK_PORTFOLIO.map(h => {
-                const pnl = (h.currentPrice - h.avgPrice) * h.qty;
-                const up = pnl >= 0;
-                const alloc = ((h.currentPrice * h.qty) / MOCK_PORTFOLIO.reduce((s, x) => s + x.currentPrice * x.qty, 0) * 100).toFixed(1);
-                return (
-                  <tr key={h.symbol}>
-                    <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{h.symbol}</td>
-                    <td>{h.qty}</td>
-                    <td className={up ? 'price-up' : 'price-down'}>{up?'+':''}₹{pnl.toFixed(0)}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ height: 4, width: 60, background: 'var(--border-default)', borderRadius: 2 }}>
-                          <div style={{ height: '100%', width: `${alloc}%`, background: 'var(--accent-cyan)', borderRadius: 2 }}/>
+          <div className="card-header"><span className="card-title">Holdings</span></div>
+          <div className="table-scroll">
+            <table className="tp-table">
+              <thead><tr><th>Stock</th><th>Qty</th><th>P&amp;L</th><th>Alloc</th></tr></thead>
+              <tbody>
+                {MOCK_PORTFOLIO.map(h => {
+                  const pnl  = (h.currentPrice - h.avgPrice) * h.qty;
+                  const up   = pnl >= 0;
+                  const alloc = ((h.currentPrice * h.qty) / totalPortfolio * 100).toFixed(1);
+                  return (
+                    <tr key={h.symbol}>
+                      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{h.symbol}</td>
+                      <td>{h.qty}</td>
+                      <td className={up ? 'price-up' : 'price-down'}>{up ? '+' : ''}₹{pnl.toFixed(0)}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ height: 4, width: 48, background: 'var(--border-default)', borderRadius: 2, flexShrink: 0 }}>
+                            <div style={{ height: '100%', width: `${alloc}%`, background: 'var(--accent-cyan)', borderRadius: 2 }}/>
+                          </div>
+                          <span className="text-xs mono">{alloc}%</span>
                         </div>
-                        <span className="text-xs mono">{alloc}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Sector distribution */}
         <div className="card">
-          <div className="card-header">
-            <span className="card-title">Sector Distribution</span>
-          </div>
+          <div className="card-header"><span className="card-title">Sector Distribution</span></div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
             {[
-              { sector: 'Technology',  pct: 68, color: 'var(--accent-cyan)'  },
-              { sector: 'Automotive',  pct: 16, color: 'var(--accent-amber)' },
-              { sector: 'Consumer',    pct: 10, color: 'var(--accent-green)' },
-              { sector: 'Energy',      pct: 6,  color: 'var(--accent-purple)'},
+              { sector: 'Technology', pct: 68, color: 'var(--accent-cyan)'   },
+              { sector: 'Automotive', pct: 16, color: 'var(--accent-amber)'  },
+              { sector: 'Consumer',   pct: 10, color: 'var(--accent-green)'  },
+              { sector: 'Energy',     pct: 6,  color: 'var(--accent-purple)' },
             ].map(s => (
               <div key={s.sector}>
                 <div className="flex-between mb-sm">
@@ -482,7 +488,7 @@ function Portfolio() {
                   <span className="text-xs mono" style={{ color: s.color }}>{s.pct}%</span>
                 </div>
                 <div style={{ height: 6, background: 'var(--border-default)', borderRadius: 3 }}>
-                  <div style={{ height: '100%', width: `${s.pct}%`, background: s.color, borderRadius: 3, transition: 'width 1s ease', boxShadow: `0 0 8px ${s.color}55` }}/>
+                  <div style={{ height: '100%', width: `${s.pct}%`, background: s.color, borderRadius: 3, transition: 'width 1s ease' }}/>
                 </div>
               </div>
             ))}
@@ -498,11 +504,11 @@ function Portfolio() {
 }
 
 function Trade() {
-  const [symbol, setSymbol]     = useState('AAPL');
-  const [qty, setQty]           = useState('');
-  const [orderType, setOrderType] = useState('MARKET');
+  const [symbol,     setSymbol]     = useState('AAPL');
+  const [qty,        setQty]        = useState('');
+  const [orderType,  setOrderType]  = useState('MARKET');
   const [limitPrice, setLimitPrice] = useState('');
-  const [submitted, setSubmitted] = useState(null);
+  const [submitted,  setSubmitted]  = useState(null);
 
   const stock = MOCK_STOCKS.find(s => s.symbol === symbol) || MOCK_STOCKS[0];
 
@@ -518,33 +524,38 @@ function Trade() {
       <h3 style={{ marginBottom: 4 }}>Trade Screen</h3>
       <p className="text-sm text-muted mb-lg">Place virtual buy/sell orders and practice market execution</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 'var(--space-lg)' }}>
+      {/* Collapses to 1 col below 1100px: order form goes beneath the market table */}
+      <div className="layout-main-aside">
         {/* Stock list */}
         <div className="card">
           <div className="card-header">
             <span className="card-title">Market</span>
-            <span className="badge badge-cyan flex items-center gap-xs"><span className="live-dot" style={{ width: 5, height: 5 }}/>Live</span>
+            <span className="badge badge-cyan flex items-center gap-xs">
+              <span className="live-dot" style={{ width: 5, height: 5 }}/> Live
+            </span>
           </div>
-          <table className="tp-table">
-            <thead><tr><th>Symbol</th><th>Name</th><th>Price</th><th>Change</th><th>Action</th></tr></thead>
-            <tbody>
-              {MOCK_STOCKS.map(s => (
-                <tr key={s.symbol} onClick={() => setSymbol(s.symbol)} style={{ cursor: 'pointer' }}>
-                  <td style={{ fontWeight: 700, color: symbol === s.symbol ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>{s.symbol}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{s.name}</td>
-                  <td className="mono">₹{s.price.toLocaleString()}</td>
-                  <td className={s.pct >= 0 ? 'price-up' : 'price-down'}>
-                    {s.pct >= 0 ? '+' : ''}{s.pct.toFixed(2)}%
-                  </td>
-                  <td>
-                    <button className="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); setSymbol(s.symbol); }}>
-                      Select
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table className="tp-table">
+              <thead>
+                <tr><th>Symbol</th><th>Name</th><th>Price</th><th>Change</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                {MOCK_STOCKS.map(s => (
+                  <tr key={s.symbol} onClick={() => setSymbol(s.symbol)} style={{ cursor: 'pointer' }}>
+                    <td style={{ fontWeight: 700, color: symbol === s.symbol ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>{s.symbol}</td>
+                    <td style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{s.name}</td>
+                    <td className="mono">₹{s.price.toLocaleString()}</td>
+                    <td className={s.pct >= 0 ? 'price-up' : 'price-down'}>{s.pct >= 0 ? '+' : ''}{s.pct.toFixed(2)}%</td>
+                    <td>
+                      <button className="btn btn-sm btn-ghost" onClick={e => { e.stopPropagation(); setSymbol(s.symbol); }}>
+                        Select
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Order form */}
@@ -558,7 +569,7 @@ function Trade() {
             {/* Price display */}
             <div style={{ background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
               <div className="stat-label">Current Price</div>
-              <div className="stat-value" style={{ fontSize: '2rem', color: stock.pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              <div className="stat-value" style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', color: stock.pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                 ₹{stock.price.toLocaleString()}
               </div>
               <span className={`badge ${stock.pct >= 0 ? 'badge-green' : 'badge-red'}`}>
@@ -595,19 +606,15 @@ function Trade() {
               </div>
 
               {qty && (
-                <div style={{ background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
                   <span className="text-xs text-muted">Estimated</span>
                   <span className="text-sm mono" style={{ color: 'var(--accent-cyan)' }}>₹{(stock.price * Number(qty)).toFixed(2)}</span>
                 </div>
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
-                <button className="btn btn-buy" onClick={() => handleOrder('BUY')}>
-                  <Icon.Plus /> BUY
-                </button>
-                <button className="btn btn-sell" onClick={() => handleOrder('SELL')}>
-                  SELL
-                </button>
+                <button className="btn btn-buy" onClick={() => handleOrder('BUY')}><Icon.Plus /> BUY</button>
+                <button className="btn btn-sell" onClick={() => handleOrder('SELL')}>SELL</button>
               </div>
             </div>
           </div>
@@ -622,7 +629,6 @@ function Trade() {
             </div>
           )}
 
-          {/* Balance card */}
           <div className="card">
             <span className="stat-label">Available Balance</span>
             <span className="stat-value" style={{ color: 'var(--accent-cyan)', marginTop: 6 }}>₹28,640</span>
@@ -634,7 +640,7 @@ function Trade() {
 }
 
 function Watchlist() {
-  const [list, setList] = useState(MOCK_STOCKS.slice(0, 6));
+  const [list,  setList]  = useState(MOCK_STOCKS.slice(0, 6));
   const [input, setInput] = useState('');
 
   const addStock = () => {
@@ -647,31 +653,35 @@ function Watchlist() {
 
   return (
     <div className="fade-in">
-      <div className="flex-between mb-lg">
+      <div className="flex-between mb-lg" style={{ flexWrap: 'wrap', gap: 'var(--space-md)' }}>
         <div>
           <h3 style={{ marginBottom: 4 }}>Watchlist</h3>
           <p className="text-sm text-muted">Track your favourite stocks</p>
         </div>
-        <div className="flex gap-sm">
-          <input placeholder="Add symbol…" value={input} onChange={e => setInput(e.target.value)}
+        <div className="flex gap-sm" style={{ flexShrink: 0 }}>
+          <input
+            placeholder="Add symbol…"
+            value={input}
+            onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addStock()}
-            style={{ width: 140 }} />
+            style={{ width: 130 }}
+          />
           <button className="btn btn-primary" onClick={addStock}><Icon.Plus /></button>
         </div>
       </div>
 
       <div className="grid grid-3 gap-md stagger">
         {list.map(s => (
-          <div className="card" key={s.symbol} style={{ cursor: 'default' }}>
-            <div className="flex-between mb-md">
+          <div className="card" key={s.symbol}>
+            <div className="flex-between mb-md" style={{ flexWrap: 'wrap', gap: 4 }}>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem' }}>{s.symbol}</div>
                 <div className="text-xs text-muted" style={{ marginTop: 2 }}>{s.name}</div>
               </div>
               <span className="badge badge-muted">{s.sector}</span>
             </div>
-            <div className="flex-between">
-              <span className="stat-value" style={{ fontSize: '1.25rem' }}>₹{s.price.toLocaleString()}</span>
+            <div className="flex-between" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <span className="stat-value" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.25rem)' }}>₹{s.price.toLocaleString()}</span>
               <span className={`badge ${s.pct >= 0 ? 'badge-green' : 'badge-red'}`}>
                 {s.pct >= 0 ? '+' : ''}{s.pct.toFixed(2)}%
               </span>
@@ -689,16 +699,21 @@ function Watchlist() {
 
 function AIInsights() {
   const [loading, setLoading] = useState(false);
-  const [chat, setChat]       = useState([
-    { role: 'ai', text: 'Hello! I\'m your TradePilot AI mentor. Ask me anything about trading, your portfolio, or market strategies.' }
+  const [chat,    setChat]    = useState([
+    { role: 'ai', text: "Hello! I'm your TradePilot AI mentor. Ask me anything about trading, your portfolio, or market strategies." }
   ]);
   const [input, setInput] = useState('');
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chat, loading]);
 
   const CANNED = {
-    'risk':      'Your current risk score is 62/100 (Medium). Your primary risk factor is over-concentration in the Technology sector (68%). Aim to keep any single sector below 40%.',
-    'tsla':      'TSLA is currently showing a paper loss of ₹140/share. This is within 1 standard deviation of normal volatility. Avoid panic-selling — evaluate your original thesis before acting.',
-    'strategy':  'For beginners, a simple strategy: invest in index ETFs (e.g., NIFTY 50) for the core (70%) and allocate up to 30% in individual stocks you understand well.',
-    'default':   'Great question! As a paper trader, focus on process over profits. Every trade is a learning opportunity — track WHY you made the trade and review the outcome.',
+    'risk':     'Your current risk score is 62/100 (Medium). Your primary risk factor is over-concentration in the Technology sector (68%). Aim to keep any single sector below 40%.',
+    'tsla':     'TSLA is currently showing a paper loss of ₹140/share. This is within 1 standard deviation of normal volatility. Avoid panic-selling — evaluate your original thesis before acting.',
+    'strategy': 'For beginners, a simple strategy: invest in index ETFs (e.g., NIFTY 50) for the core (70%) and allocate up to 30% in individual stocks you understand well.',
+    'default':  'Great question! As a paper trader, focus on process over profits. Every trade is a learning opportunity — track WHY you made the trade and review the outcome.',
   };
 
   const askAI = () => {
@@ -719,19 +734,19 @@ function AIInsights() {
       <h3 style={{ marginBottom: 4 }}>AI Insights</h3>
       <p className="text-sm text-muted mb-lg">Behavioral analysis, risk feedback, and your AI learning assistant</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 'var(--space-lg)' }}>
-        {/* Insights */}
+      {/* Collapses to 1 col below 1100px; chat moves below insights */}
+      <div className="layout-main-chat">
+        {/* Insights column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          {/* Trade feedback */}
           <div className="card">
             <div className="card-header">
-              <span className="card-title flex items-center gap-xs"><Icon.Sparkle /> Trade Feedback</span>
+              <span className="card-title"><Icon.Sparkle /> Trade Feedback</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {MOCK_AI_INSIGHTS.map(ins => (
                 <div key={ins.id} className="ai-chip" style={{
                   borderLeftColor: ins.type === 'warning' ? 'var(--accent-amber)' : ins.type === 'success' ? 'var(--accent-green)' : 'var(--accent-cyan)',
-                  background: ins.type === 'warning' ? 'var(--accent-amber-dim)' : ins.type === 'success' ? 'var(--accent-green-dim)' : 'var(--accent-cyan-dim)'
+                  background:      ins.type === 'warning' ? 'var(--accent-amber-dim)' : ins.type === 'success' ? 'var(--accent-green-dim)' : 'var(--accent-cyan-dim)'
                 }}>
                   <span className="ai-icon" style={{ color: ins.type === 'warning' ? 'var(--accent-amber)' : ins.type === 'success' ? 'var(--accent-green)' : 'var(--accent-cyan)' }}>
                     <Icon.Sparkle />
@@ -742,17 +757,14 @@ function AIInsights() {
             </div>
           </div>
 
-          {/* Behavioral patterns */}
           <div className="card">
-            <div className="card-header">
-              <span className="card-title">Behavioral Patterns</span>
-            </div>
+            <div className="card-header"><span className="card-title">Behavioral Patterns</span></div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { label: 'Overtrading',       score: 25, risk: false },
-                { label: 'Emotional Trading', score: 40, risk: true },
-                { label: 'Concentration Risk',score: 68, risk: true },
-                { label: 'Discipline Score',  score: 72, risk: false },
+                { label: 'Overtrading',        score: 25, risk: false },
+                { label: 'Emotional Trading',  score: 40, risk: true  },
+                { label: 'Concentration Risk', score: 68, risk: true  },
+                { label: 'Discipline Score',   score: 72, risk: false },
               ].map(b => (
                 <div key={b.label}>
                   <div className="flex-between mb-sm">
@@ -763,8 +775,7 @@ function AIInsights() {
                   </div>
                   <div style={{ height: 5, background: 'var(--border-default)', borderRadius: 3 }}>
                     <div style={{
-                      height: '100%', borderRadius: 3, transition: 'width 1s ease',
-                      width: `${b.score}%`,
+                      height: '100%', borderRadius: 3, transition: 'width 1s ease', width: `${b.score}%`,
                       background: b.score > 60 && b.risk ? 'var(--accent-red)' : b.score > 40 ? 'var(--accent-amber)' : 'var(--accent-green)'
                     }}/>
                   </div>
@@ -773,17 +784,14 @@ function AIInsights() {
             </div>
           </div>
 
-          {/* Risk overview */}
           <div className="card">
-            <div className="card-header">
-              <span className="card-title">Risk Overview</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'center' }}>
+            <div className="card-header"><span className="card-title">Risk Overview</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 16, alignItems: 'center' }}>
               <RiskRing score={62} size={100} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { label: 'Diversification', val: 'Low', color: 'var(--accent-red)' },
-                  { label: 'Stop-loss Usage', val: 'None', color: 'var(--accent-amber)' },
+                  { label: 'Diversification', val: 'Low',  color: 'var(--accent-red)'   },
+                  { label: 'Stop-loss Usage', val: 'None', color: 'var(--accent-amber)'  },
                   { label: 'Volatility Exp.',  val: 'High', color: 'var(--accent-amber)' },
                   { label: 'Consistency',      val: 'Good', color: 'var(--accent-green)' },
                 ].map(r => (
@@ -800,23 +808,21 @@ function AIInsights() {
         {/* AI Chat */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', height: 560 }}>
           <div className="card-header">
-            <span className="card-title flex items-center gap-xs">
-              <Icon.Sparkle /> AI Mentor
-            </span>
+            <span className="card-title"><Icon.Sparkle /> AI Mentor</span>
             <span className="live-dot"/>
           </div>
 
-          {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
             {chat.map((msg, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
                   maxWidth: '85%', padding: '10px 14px', borderRadius: 'var(--radius-md)',
                   background: msg.role === 'user' ? 'var(--accent-cyan)' : 'var(--bg-primary)',
-                  color: msg.role === 'user' ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                  color:      msg.role === 'user' ? 'var(--bg-primary)' : 'var(--text-secondary)',
                   fontSize: '0.875rem', lineHeight: 1.6,
-                  border: msg.role !== 'user' ? '1px solid var(--border-subtle)' : 'none',
+                  border:    msg.role !== 'user' ? '1px solid var(--border-subtle)' : 'none',
                   fontWeight: msg.role === 'user' ? 500 : 400,
+                  wordBreak: 'break-word',
                 }}>
                   {msg.text}
                 </div>
@@ -829,9 +835,9 @@ function AIInsights() {
                 ))}
               </div>
             )}
+            <div ref={chatEndRef} />
           </div>
 
-          {/* Input */}
           <div className="flex gap-sm mt-md" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
             <input
               placeholder="Ask about your trades, risk, strategies…"
@@ -840,11 +846,11 @@ function AIInsights() {
               onKeyDown={e => e.key === 'Enter' && askAI()}
               style={{ fontSize: '0.875rem' }}
             />
-            <button className="btn btn-primary btn-icon" onClick={askAI}><Icon.Sparkle /></button>
+            <button className="btn btn-primary btn-icon" onClick={askAI} style={{ flexShrink: 0 }}><Icon.Sparkle /></button>
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {['My risk score', 'TSLA advice', 'Strategy tips'].map(s => (
-              <button key={s} className="btn btn-sm btn-ghost" style={{ fontSize: '0.7rem' }} onClick={() => { setInput(s); }}>{s}</button>
+              <button key={s} className="btn btn-sm btn-ghost" style={{ fontSize: '0.7rem' }} onClick={() => setInput(s)}>{s}</button>
             ))}
           </div>
         </div>
@@ -860,9 +866,9 @@ function Settings() {
       <p className="text-sm text-muted mb-lg">Manage your account and preferences</p>
       <div style={{ maxWidth: 520, display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
         {[
-          { label: 'Display Name',   type: 'text',  placeholder: 'John Trader'      },
-          { label: 'Email',          type: 'email', placeholder: 'you@example.com'  },
-          { label: 'Starting Balance (₹)', type: 'number', placeholder: '100000'  },
+          { label: 'Display Name',        type: 'text',   placeholder: 'John Trader'     },
+          { label: 'Email',               type: 'email',  placeholder: 'you@example.com' },
+          { label: 'Starting Balance (₹)',type: 'number', placeholder: '100000'          },
         ].map(f => (
           <div className="card" key={f.label}>
             <div className="form-group">
@@ -948,9 +954,9 @@ function Signup() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[
-            { label: 'Full Name',  type: 'text',     placeholder: 'John Trader'     },
-            { label: 'Email',      type: 'email',    placeholder: 'you@example.com' },
-            { label: 'Password',   type: 'password', placeholder: '••••••••'        },
+            { label: 'Full Name', type: 'text',     placeholder: 'John Trader'     },
+            { label: 'Email',     type: 'email',    placeholder: 'you@example.com' },
+            { label: 'Password',  type: 'password', placeholder: '••••••••'        },
           ].map(f => (
             <div className="form-group" key={f.label}>
               <label>{f.label}</label>
@@ -980,14 +986,41 @@ function Signup() {
 // ─────────────────────────────────────────────────────────────
 
 function AppLayout({ user, onLogout }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed,   setCollapsed]   = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+
+  // Detect mobile breakpoint
+  const isMobile = () => window.innerWidth <= 900;
+
+  const handleMenuToggle = () => {
+    if (isMobile()) {
+      setMobileOpen(prev => !prev);
+    } else {
+      setCollapsed(prev => !prev);
+    }
+  };
+
+  // Close mobile sidebar on route change / resize
+  useEffect(() => {
+    const onResize = () => {
+      if (!isMobile()) setMobileOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   return (
     <div className="app-wrapper">
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} onLogout={onLogout} />
+      <Sidebar
+        collapsed={collapsed}
+        mobileOpen={mobileOpen}
+        onToggle={handleMenuToggle}
+        onClose={() => setMobileOpen(false)}
+        onLogout={onLogout}
+      />
       <div className={`app-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
         <TickerBar stocks={MOCK_STOCKS} />
-        <Navbar onMenuToggle={() => setCollapsed(c => !c)} user={user} />
+        <Navbar onMenuToggle={handleMenuToggle} user={user} />
         <main className="app-content">
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -1010,7 +1043,6 @@ function AppLayout({ user, onLogout }) {
 
 function AppRoutes() {
   const { user, logout } = useAuth();
-  const location = useLocation();
 
   if (!user) {
     return (
