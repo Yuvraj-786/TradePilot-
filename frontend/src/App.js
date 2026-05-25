@@ -10,6 +10,29 @@ const AuthContext = createContext(null);
 const useAuth = () => useContext(AuthContext);
 
 // ─────────────────────────────────────────────────────────────
+// THEME HOOK
+// ─────────────────────────────────────────────────────────────
+
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('tp_theme') || 'dark';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('light-mode');
+    } else {
+      root.classList.remove('light-mode');
+    }
+    localStorage.setItem('tp_theme', theme);
+  }, [theme]);
+
+  const toggle = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  return { theme, toggle };
+}
+
+// ─────────────────────────────────────────────────────────────
 // MOCK DATA
 // ─────────────────────────────────────────────────────────────
 
@@ -71,6 +94,24 @@ const Icon = {
   Plus:      () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   Bell:      () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
   Close:     () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Sun:       () => (
+    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  ),
+  Moon:      () => (
+    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  ),
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -134,7 +175,6 @@ const NAV_LINKS = [
 function Sidebar({ collapsed, mobileOpen, onToggle, onClose, onLogout }) {
   return (
     <>
-      {/* Backdrop overlay for mobile */}
       <div
         className={`sidebar-backdrop ${mobileOpen ? 'active' : ''}`}
         onClick={onClose}
@@ -197,9 +237,10 @@ function Sidebar({ collapsed, mobileOpen, onToggle, onClose, onLogout }) {
 // NAVBAR
 // ─────────────────────────────────────────────────────────────
 
-function Navbar({ onMenuToggle, user }) {
+function Navbar({ onMenuToggle, user, theme, onThemeToggle }) {
   const location = useLocation();
   const title = NAV_LINKS.find(l => location.pathname.startsWith(l.to))?.label || 'TradePilot';
+
   return (
     <header className="app-navbar flex-between">
       <div className="flex gap-md items-center" style={{ minWidth: 0 }}>
@@ -214,10 +255,22 @@ function Navbar({ onMenuToggle, user }) {
           <span className="text-xs text-muted mono">LIVE</span>
         </div>
       </div>
+
       <div className="flex items-center gap-md" style={{ flexShrink: 0 }}>
+        {/* Theme Toggle */}
+        <button
+          className="theme-toggle-btn"
+          onClick={onThemeToggle}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? <Icon.Sun /> : <Icon.Moon />}
+        </button>
+
         <button className="btn btn-icon btn-ghost" title="Notifications">
           <Icon.Bell />
         </button>
+
         <div style={{
           width: 32, height: 32, borderRadius: '50%',
           background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-green))',
@@ -274,7 +327,7 @@ function RiskRing({ score = 62, size = 80 }) {
             fill="none" stroke={color} strokeWidth="5"
             strokeDasharray={`${dash} ${circ}`}
             strokeLinecap="round"
-            style={{ filter: `drop-shadow(0 0 6px ${color})`, transition: 'stroke-dasharray 1s ease' }}
+            style={{ transition: 'stroke-dasharray 1s ease' }}
           />
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -326,7 +379,6 @@ function Dashboard() {
 
   return (
     <div className="fade-in">
-      {/* Stats row — 4 cols on desktop, 2 on tablet, 1 on mobile */}
       <div className="grid grid-4 gap-md mb-lg stagger">
         <StatCard label="Portfolio Value" value={`₹${totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} change={`₹${Math.abs(totalPnL).toFixed(0)}`} pct={`${pnlPct.toFixed(2)}%`} up={totalPnL >= 0} sparkData={sparkUp} />
         <StatCard label="Virtual Balance" value="₹28,640"  change="₹3,200" pct="11.2%" up={true}  sparkData={sparkUp}   />
@@ -334,7 +386,6 @@ function Dashboard() {
         <StatCard label="Total Trades"    value="24"        change="3"      pct="today" up={true}  sparkData={sparkDown} />
       </div>
 
-      {/* Main + aside — collapses to single column below 1100px */}
       <div className="layout-main-aside">
         {/* Portfolio chart */}
         <div className="card">
@@ -355,7 +406,6 @@ function Dashboard() {
                     background: isLast ? 'var(--accent-cyan)' : `rgba(0,212,255,${0.15 + (i / 19) * 0.35})`,
                     borderRadius: '3px 3px 0 0',
                     transition: 'height 0.8s ease',
-                    boxShadow: isLast ? 'var(--shadow-glow-cyan)' : 'none'
                   }}/>
                 </div>
               );
@@ -524,7 +574,6 @@ function Trade() {
       <h3 style={{ marginBottom: 4 }}>Trade Screen</h3>
       <p className="text-sm text-muted mb-lg">Place virtual buy/sell orders and practice market execution</p>
 
-      {/* Collapses to 1 col below 1100px: order form goes beneath the market table */}
       <div className="layout-main-aside">
         {/* Stock list */}
         <div className="card">
@@ -566,7 +615,6 @@ function Trade() {
               <span className="badge badge-cyan">{symbol}</span>
             </div>
 
-            {/* Price display */}
             <div style={{ background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
               <div className="stat-label">Current Price</div>
               <div className="stat-value" style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', color: stock.pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
@@ -734,7 +782,6 @@ function AIInsights() {
       <h3 style={{ marginBottom: 4 }}>AI Insights</h3>
       <p className="text-sm text-muted mb-lg">Behavioral analysis, risk feedback, and your AI learning assistant</p>
 
-      {/* Collapses to 1 col below 1100px; chat moves below insights */}
       <div className="layout-main-chat">
         {/* Insights column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
@@ -818,7 +865,7 @@ function AIInsights() {
                 <div style={{
                   maxWidth: '85%', padding: '10px 14px', borderRadius: 'var(--radius-md)',
                   background: msg.role === 'user' ? 'var(--accent-cyan)' : 'var(--bg-primary)',
-                  color:      msg.role === 'user' ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                  color:      msg.role === 'user' ? '#080c14' : 'var(--text-secondary)',
                   fontSize: '0.875rem', lineHeight: 1.6,
                   border:    msg.role !== 'user' ? '1px solid var(--border-subtle)' : 'none',
                   fontWeight: msg.role === 'user' ? 500 : 400,
@@ -859,7 +906,7 @@ function AIInsights() {
   );
 }
 
-function Settings() {
+function Settings({ theme, onThemeToggle }) {
   return (
     <div className="fade-in">
       <h3 style={{ marginBottom: 4 }}>Settings</h3>
@@ -877,6 +924,43 @@ function Settings() {
             </div>
           </div>
         ))}
+
+        {/* Theme preference card */}
+        <div className="card">
+          <div className="card-header" style={{ marginBottom: 0, paddingBottom: 0, border: 'none' }}>
+            <span className="card-title">Appearance</span>
+          </div>
+          <div style={{ marginTop: 'var(--space-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <p className="text-sm" style={{ color: 'var(--text-primary)', marginBottom: 2, fontWeight: 500 }}>
+                {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+              </p>
+              <p className="text-xs text-muted">Toggle between dark and light theme</p>
+            </div>
+            <button
+              onClick={onThemeToggle}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-default)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontFamily: 'var(--font-body)',
+                transition: 'all var(--transition-fast)',
+                flexShrink: 0,
+              }}
+            >
+              {theme === 'dark' ? <Icon.Sun /> : <Icon.Moon />}
+              <span>{theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}</span>
+            </button>
+          </div>
+        </div>
+
         <button className="btn btn-primary w-full">Save Changes</button>
       </div>
     </div>
@@ -887,13 +971,23 @@ function Settings() {
 // AUTH PAGES
 // ─────────────────────────────────────────────────────────────
 
-function Login() {
+function Login({ theme, onThemeToggle }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [pass,  setPass]  = useState('');
 
   return (
     <div className="auth-page">
+      {/* Theme toggle on auth page */}
+      <button
+        className="auth-theme-btn"
+        onClick={onThemeToggle}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? <Icon.Sun /> : <Icon.Moon />}
+      </button>
+
       <div className="auth-card fade-in">
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
           <div style={{
@@ -936,10 +1030,20 @@ function Login() {
   );
 }
 
-function Signup() {
+function Signup({ theme, onThemeToggle }) {
   const { login } = useAuth();
   return (
     <div className="auth-page">
+      {/* Theme toggle on auth page */}
+      <button
+        className="auth-theme-btn"
+        onClick={onThemeToggle}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? <Icon.Sun /> : <Icon.Moon />}
+      </button>
+
       <div className="auth-card fade-in">
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
           <div style={{
@@ -985,11 +1089,10 @@ function Signup() {
 // PROTECTED LAYOUT
 // ─────────────────────────────────────────────────────────────
 
-function AppLayout({ user, onLogout }) {
+function AppLayout({ user, onLogout, theme, toggleTheme }) {
   const [collapsed,   setCollapsed]   = useState(false);
   const [mobileOpen,  setMobileOpen]  = useState(false);
 
-  // Detect mobile breakpoint
   const isMobile = () => window.innerWidth <= 900;
 
   const handleMenuToggle = () => {
@@ -1000,7 +1103,6 @@ function AppLayout({ user, onLogout }) {
     }
   };
 
-  // Close mobile sidebar on route change / resize
   useEffect(() => {
     const onResize = () => {
       if (!isMobile()) setMobileOpen(false);
@@ -1020,7 +1122,12 @@ function AppLayout({ user, onLogout }) {
       />
       <div className={`app-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
         <TickerBar stocks={MOCK_STOCKS} />
-        <Navbar onMenuToggle={handleMenuToggle} user={user} />
+        <Navbar
+          onMenuToggle={handleMenuToggle}
+          user={user}
+          theme={theme}
+          onThemeToggle={toggleTheme}
+        />
         <main className="app-content">
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -1028,7 +1135,7 @@ function AppLayout({ user, onLogout }) {
             <Route path="/trade"     element={<Trade />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/ai"        element={<AIInsights />} />
-            <Route path="/settings"  element={<Settings />} />
+            <Route path="/settings"  element={<Settings theme={theme} onThemeToggle={toggleTheme} />} />
             <Route path="*"          element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
@@ -1041,20 +1148,20 @@ function AppLayout({ user, onLogout }) {
 // ROOT APP
 // ─────────────────────────────────────────────────────────────
 
-function AppRoutes() {
+function AppRoutes({ theme, toggleTheme }) {
   const { user, logout } = useAuth();
 
   if (!user) {
     return (
       <Routes>
-        <Route path="/login"  element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/login"  element={<Login  theme={theme} onThemeToggle={toggleTheme} />} />
+        <Route path="/signup" element={<Signup theme={theme} onThemeToggle={toggleTheme} />} />
         <Route path="*"       element={<Navigate to="/login" replace />} />
       </Routes>
     );
   }
 
-  return <AppLayout user={user} onLogout={logout} />;
+  return <AppLayout user={user} onLogout={logout} theme={theme} toggleTheme={toggleTheme} />;
 }
 
 export default function App() {
@@ -1062,13 +1169,15 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('tp_user')); } catch { return null; }
   });
 
+  const { theme, toggle: toggleTheme } = useTheme();
+
   const login  = (u) => { setUser(u); localStorage.setItem('tp_user', JSON.stringify(u)); };
   const logout = ()  => { setUser(null); localStorage.removeItem('tp_user'); };
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
       <Router>
-        <AppRoutes />
+        <AppRoutes theme={theme} toggleTheme={toggleTheme} />
       </Router>
     </AuthContext.Provider>
   );
