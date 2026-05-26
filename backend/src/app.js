@@ -1,24 +1,36 @@
 import express from "express";
-import userRoutes from "./routes/user.routes.js";
-import dbtestRoutes from "./routes/dbtest.routes.js";
+import cors from "cors";
+import authRoutes from "./routes/authRoutes.js";
+import marketRoutes from "./routes/marketRoutes.js";
+import tradeRoutes from "./routes/tradeRoutes.js";
+import portfolioRoutes from "./routes/portfolioRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import watchlistRoutes from "./routes/watchlistRoutes.js";
+import backtestingRoutes from "./routes/backtestingRoutes.js";
 import { logger } from "./middleware/logger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import tradeRoutes from "./routes/trade.routes.js";
 
 const app = express();
 
-// middleware (important later)
+app.use(cors());
 app.use(express.json());
-
 app.use(logger);
 
-app.use(errorHandler);
+app.get("/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "TradePilot backend is live.",
+  });
+});
 
-// user routes connect
-app.use("/api", userRoutes);
-
-app.use("/api", dbtestRoutes);
-
+app.use("/api/auth", authRoutes);
+app.use("/api/market", marketRoutes);
 app.use("/api/trade", tradeRoutes);
+app.use("/api/portfolio", portfolioRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/watchlist", watchlistRoutes);
+app.use("/api/backtesting", backtestingRoutes);
+
+app.use(errorHandler);
 
 export default app;
