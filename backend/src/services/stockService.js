@@ -11,13 +11,130 @@ const MOCK_STOCKS = {
 
 const FINNHUB_BASE_URL = process.env.FINNHUB_BASE_URL || "https://finnhub.io/api/v1";
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = Number(process.env.QUOTE_CACHE_TTL_MS || 5_000);
 
 const quoteCache = new Map();
+const exchangeSymbolCache = new Map();
 let warnedMissingFinnhubKey = false;
 let warnedFinnhubFailure = false;
 
+const POPULAR_STOCKS = [
+  { symbol: "AAPL", name: "Apple Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "MSFT", name: "Microsoft Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "NVDA", name: "NVIDIA Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "TSLA", name: "Tesla, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "AMZN", name: "Amazon.com, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "GOOGL", name: "Alphabet Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "JPM", name: "JPMorgan Chase & Co.", exchange: "US", type: "Common Stock" },
+  { symbol: "VTI", name: "Vanguard Total Stock Market ETF", exchange: "US", type: "ETF" },
+  { symbol: "RELIANCE", name: "Reliance Industries Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "INFY", name: "Infosys Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "TCS", name: "Tata Consultancy Services Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "HDFCBANK", name: "HDFC Bank Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "ICICIBANK", name: "ICICI Bank Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "SBIN", name: "State Bank of India", exchange: "NSE", type: "Common Stock" },
+];
+
+const DISCOVERY_STOCKS = [
+  { symbol: "META", name: "Meta Platforms, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "NFLX", name: "Netflix, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "ADBE", name: "Adobe Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "INTC", name: "Intel Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "AMD", name: "Advanced Micro Devices, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "ORCL", name: "Oracle Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "CRM", name: "Salesforce, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "QCOM", name: "QUALCOMM Incorporated", exchange: "US", type: "Common Stock" },
+  { symbol: "AVGO", name: "Broadcom Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "PYPL", name: "PayPal Holdings, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "MA", name: "Mastercard Incorporated", exchange: "US", type: "Common Stock" },
+  { symbol: "V", name: "Visa Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "BAC", name: "Bank of America Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "WFC", name: "Wells Fargo & Company", exchange: "US", type: "Common Stock" },
+  { symbol: "XOM", name: "Exxon Mobil Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "CVX", name: "Chevron Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "UNH", name: "UnitedHealth Group Incorporated", exchange: "US", type: "Common Stock" },
+  { symbol: "JNJ", name: "Johnson & Johnson", exchange: "US", type: "Common Stock" },
+  { symbol: "PFE", name: "Pfizer Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "ABBV", name: "AbbVie Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "ABBV", name: "AbbVie Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "TMO", name: "Thermo Fisher Scientific Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "COST", name: "Costco Wholesale Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "KO", name: "The Coca-Cola Company", exchange: "US", type: "Common Stock" },
+  { symbol: "PEP", name: "PepsiCo, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "DIS", name: "The Walt Disney Company", exchange: "US", type: "Common Stock" },
+  { symbol: "SONY", name: "Sony Group Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "LIN", name: "Linde plc", exchange: "US", type: "Common Stock" },
+  { symbol: "NKE", name: "NIKE, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "LOW", name: "Lowe's Companies, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "HD", name: "The Home Depot, Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "MCD", name: "McDonald's Corporation", exchange: "US", type: "Common Stock" },
+  { symbol: "MRK", name: "Merck & Co., Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "BMY", name: "Bristol-Myers Squibb Company", exchange: "US", type: "Common Stock" },
+  { symbol: "TXN", name: "Texas Instruments Incorporated", exchange: "US", type: "Common Stock" },
+  { symbol: "CAT", name: "Caterpillar Inc.", exchange: "US", type: "Common Stock" },
+  { symbol: "GE", name: "General Electric Company", exchange: "US", type: "Common Stock" },
+  { symbol: "BA", name: "The Boeing Company", exchange: "US", type: "Common Stock" },
+  { symbol: "SPY", name: "SPDR S&P 500 ETF Trust", exchange: "US", type: "ETF" },
+  { symbol: "QQQ", name: "Invesco QQQ Trust", exchange: "US", type: "ETF" },
+  { symbol: "IWM", name: "iShares Core S&P 500 ETF", exchange: "US", type: "ETF" },
+  { symbol: "TATASTEEL", name: "Tata Steel Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "BHARTIARTL", name: "Bharti Airtel Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "MARUTI", name: "Maruti Suzuki India Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "LT", name: "Larsen & Toubro Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "AXISBANK", name: "Axis Bank Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "KOTAKBANK", name: "Kotak Mahindra Bank Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "WIPRO", name: "Wipro Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "TECHM", name: "Tech Mahindra Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "DRREDDY", name: "Dr. Reddy's Laboratories Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "SUNPHARMA", name: "Sun Pharmaceutical Industries Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "NESTLEIND", name: "Nestlé India Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "ULTRACEMCO", name: "UltraTech Cement Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "ITC", name: "ITC Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "BAJAJFINSV", name: "Bajaj Finance Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "HCLTECH", name: "HCL Technologies Limited", exchange: "NSE", type: "Common Stock" },
+  { symbol: "ONGC", name: "Oil and Natural Gas Corporation Limited", exchange: "NSE", type: "Common Stock" },
+];
+
+const EXCHANGE_ALIASES = {
+  US: "US",
+  NYSE: "US",
+  NASDAQ: "US",
+  NSE: "NSE",
+  BSE: "BSE",
+};
+
 const safePrice = (price) => Number(Number(price).toFixed(2));
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const seeded = (seed) => {
+  let value = seed >>> 0;
+
+  return () => {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 0xffffffff;
+  };
+};
+
+const hash = (value) => {
+  let hashed = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hashed ^= value.charCodeAt(index);
+    hashed = (hashed * 16777619) >>> 0;
+  }
+
+  return hashed;
+};
+
+const createPriceDrift = (symbol) => {
+  const minuteBucket = Math.floor(Date.now() / 10_000);
+  const seed = Array.from(symbol).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const wave = Math.sin((minuteBucket + seed) / 3) * 0.45;
+  const pulse = Math.cos((minuteBucket + seed) / 7) * 0.2;
+
+  return Number((wave + pulse).toFixed(2));
+};
 
 const createSyntheticQuote = (symbol) => {
   const seededChange = (symbol.length % 5) * 0.35;
@@ -36,16 +153,27 @@ const createSyntheticQuote = (symbol) => {
 
 const createFallbackQuote = (symbol) => {
   const known = MOCK_STOCKS[symbol];
+  const drift = createPriceDrift(symbol);
 
   if (known) {
+    const price = safePrice(known.price + drift);
+
     return {
       ...known,
+      price,
+      change: Number((known.change + drift / Math.max(known.price, 1) * 100).toFixed(2)),
       symbol,
       lastUpdated: new Date().toISOString(),
     };
   }
 
-  return createSyntheticQuote(symbol);
+  const synthetic = createSyntheticQuote(symbol);
+
+  return {
+    ...synthetic,
+    price: safePrice(synthetic.price + drift),
+    change: Number((synthetic.change + drift / Math.max(synthetic.price, 1) * 100).toFixed(2)),
+  };
 };
 
 const getCachedQuote = (symbol) => {
@@ -90,47 +218,79 @@ const CANDLE_RESOLUTIONS = {
   "1M": "M",
 };
 
-const HISTORY_LOOKBACK_SECONDS = {
-  "1m": 24 * 60 * 60,
-  "5m": 7 * 24 * 60 * 60,
-  "15m": 7 * 24 * 60 * 60,
-  "30m": 14 * 24 * 60 * 60,
-  "1H": 30 * 24 * 60 * 60,
-  "4H": 60 * 24 * 60 * 60,
-  "1D": 365 * 24 * 60 * 60,
-  "1W": 5 * 365 * 24 * 60 * 60,
-  "1M": 10 * 365 * 24 * 60 * 60,
+const CANDLE_TARGET_COUNTS = {
+  "1m": 220,
+  "5m": 180,
+  "15m": 160,
+  "30m": 140,
+  "1H": 180,
+  "4H": 140,
+  "1D": 130,
+  "1W": 120,
+  "1M": 110,
+};
+
+const TIMEFRAME_SECONDS = {
+  "1m": 60,
+  "5m": 5 * 60,
+  "15m": 15 * 60,
+  "30m": 30 * 60,
+  "1H": 60 * 60,
+  "4H": 4 * 60 * 60,
+  "1D": 24 * 60 * 60,
+  "1W": 7 * 24 * 60 * 60,
+  "1M": 30 * 24 * 60 * 60,
 };
 
 const normalizeTimeframe = (timeframe = "1H") => {
   return Object.prototype.hasOwnProperty.call(CANDLE_RESOLUTIONS, timeframe) ? timeframe : "1H";
 };
 
+const getHistoryWindow = (timeframe = "1H") => {
+  const normalized = normalizeTimeframe(timeframe);
+  const stepSeconds = TIMEFRAME_SECONDS[normalized];
+  const now = Math.floor(Date.now() / 1000);
+  const alignedNow = Math.floor(now / stepSeconds) * stepSeconds;
+  const targetCount = Math.max(100, Math.min(300, CANDLE_TARGET_COUNTS[normalized] ?? 220));
+
+  return {
+    alignedNow,
+    from: alignedNow - stepSeconds * targetCount,
+    to: alignedNow,
+    targetCount,
+  };
+};
+
 const createSyntheticCandles = (symbol, basePrice, timeframe) => {
   const normalized = normalizeTimeframe(timeframe);
-  const seededChange = (symbol.length % 5) * 0.25;
-  const stepSeconds = Math.max(60, Math.floor(HISTORY_LOOKBACK_SECONDS[normalized] / 80));
+  const rand = seeded(hash(`${symbol}${normalized}`));
+  const stepSeconds = TIMEFRAME_SECONDS[normalized];
   const now = Math.floor(Date.now() / 1000);
-  const count = 80;
+  const count = Math.max(100, Math.min(300, CANDLE_TARGET_COUNTS[normalized] ?? 220));
+  const startAligned = Math.floor((now - stepSeconds * count) / stepSeconds) * stepSeconds;
+  const volatility = basePrice * 0.012;
+  const drift = basePrice * 0.0004;
 
-  let current = safePrice(basePrice);
+  let current = basePrice * (0.85 + rand() * 0.05);
   const candles = [];
 
   for (let index = 0; index < count; index += 1) {
-    const time = now - (count - index) * stepSeconds;
-    const drift = ((index % 5) - 2) * 0.35 + seededChange;
+    const time = startAligned + index * stepSeconds;
     const open = current;
-    const close = safePrice(open + drift);
-    const high = safePrice(Math.max(open, close) + 0.35);
-    const low = safePrice(Math.min(open, close) - 0.35);
+    const direction = rand() > 0.48 ? 1 : -1;
+    const move = (rand() * volatility + drift) * direction;
+    const close = Math.max(0.5, open + move);
+    const high = Math.max(open, close) + rand() * volatility * 0.6;
+    const low = Math.min(open, close) - rand() * volatility * 0.6;
+    const volume = Math.round((50000 + rand() * 250000) * (1 + Math.abs(move) / volatility));
 
     candles.push({
       time,
-      open,
-      high,
-      low,
-      close,
-      volume: 120000 + index * 450,
+      open: safePrice(open),
+      high: safePrice(high),
+      low: safePrice(Math.max(0.5, low)),
+      close: safePrice(close),
+      volume,
     });
 
     current = close;
@@ -139,14 +299,74 @@ const createSyntheticCandles = (symbol, basePrice, timeframe) => {
   return candles;
 };
 
-const fetchJson = async (url) => {
-  const response = await fetch(url);
+const fetchFinnhubJson = async (url, { maxAttempts = 3, baseDelayMs = 300 } = {}) => {
+  let lastError;
 
-  if (!response.ok) {
-    throw new Error(`Finnhub request failed with status ${response.status}`);
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url);
+
+      if (response.status === 429 || response.status >= 500) {
+        const retryAfterHeader = response.headers.get("retry-after");
+        const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : baseDelayMs * (attempt + 1);
+        lastError = new Error(`Finnhub request failed with status ${response.status}`);
+        if (attempt === maxAttempts - 1) {
+          throw lastError;
+        }
+        await sleep(retryAfterMs);
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Finnhub request failed with status ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Finnhub request failed.");
+      if (attempt === maxAttempts - 1) {
+        throw lastError;
+      }
+      await sleep(baseDelayMs * (attempt + 1));
+    }
   }
 
-  return response.json();
+  throw lastError ?? new Error("Finnhub request failed.");
+};
+
+const normalizeExchange = (exchange = "US") => {
+  const normalized = String(exchange || "US").toUpperCase();
+  return EXCHANGE_ALIASES[normalized] || normalized;
+};
+
+const normalizeSymbolResult = (entry) => {
+  const symbol = String(entry?.symbol || entry?.displaySymbol || "").toUpperCase();
+  const name = String(entry?.description || entry?.name || symbol);
+
+  if (!symbol) {
+    return null;
+  }
+
+  return {
+    symbol,
+    name,
+    exchange: normalizeExchange(entry?.exchange || entry?.mic || "US"),
+    description: name,
+    type: String(entry?.type || "Common Stock"),
+  };
+};
+
+const getFallbackExchangeSymbols = (exchange) => {
+  const normalized = normalizeExchange(exchange);
+  const fallback = [...POPULAR_STOCKS, ...DISCOVERY_STOCKS].filter((item) => item.exchange === normalized);
+
+  return Array.from(new Map(fallback.map((item) => [item.symbol, item])).values()).map((item) => ({
+    symbol: item.symbol,
+    name: item.name,
+    exchange: item.exchange,
+    description: item.name,
+    type: item.type,
+  }));
 };
 
 const fetchLiveQuote = async (symbol) => {
@@ -157,8 +377,8 @@ const fetchLiveQuote = async (symbol) => {
   const token = `token=${FINNHUB_API_KEY}`;
 
   const [quoteResponse, profileResponse] = await Promise.allSettled([
-    fetchJson(`${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&${token}`),
-    fetchJson(`${FINNHUB_BASE_URL}/stock/profile2?symbol=${encodeURIComponent(symbol)}&${token}`),
+    fetchFinnhubJson(`${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(symbol)}&${token}`),
+    fetchFinnhubJson(`${FINNHUB_BASE_URL}/stock/profile2?symbol=${encodeURIComponent(symbol)}&${token}`),
   ]);
 
   if (quoteResponse.status !== "fulfilled") {
@@ -195,12 +415,11 @@ const fetchHistoricalCandles = async (symbol, timeframe = "1H") => {
 
   const normalized = normalizeTimeframe(timeframe);
   const resolution = CANDLE_RESOLUTIONS[normalized];
-  const now = Math.floor(Date.now() / 1000);
-  const from = now - HISTORY_LOOKBACK_SECONDS[normalized];
+  const { from, to } = getHistoryWindow(normalized);
   const token = `token=${FINNHUB_API_KEY}`;
 
-  const response = await fetchJson(
-    `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${now}&${token}`
+  const response = await fetchFinnhubJson(
+    `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}&${token}`
   );
 
   if (!response || response.s !== "ok") {
@@ -214,14 +433,40 @@ const fetchHistoricalCandles = async (symbol, timeframe = "1H") => {
   const closes = Array.isArray(response.c) ? response.c : [];
   const volumes = Array.isArray(response.v) ? response.v : [];
 
-  return timestamps.map((timestamp, index) => ({
-    time: Number(timestamp),
-    open: safePrice(opens[index]),
-    high: safePrice(highs[index]),
-    low: safePrice(lows[index]),
-    close: safePrice(closes[index]),
-    volume: Number(volumes[index] ?? 0),
-  })).filter((candle) => candle.time > 0 && Number.isFinite(candle.open) && Number.isFinite(candle.high) && Number.isFinite(candle.low) && Number.isFinite(candle.close));
+  const candles = timestamps
+    .map((timestamp, index) => {
+      const time = Number(timestamp);
+      const open = Number(opens[index]);
+      const high = Number(highs[index]);
+      const low = Number(lows[index]);
+      const close = Number(closes[index]);
+
+      if (!Number.isFinite(time) || !Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+        return null;
+      }
+
+      return {
+        time,
+        open: safePrice(open),
+        high: safePrice(high),
+        low: safePrice(low),
+        close: safePrice(close),
+        volume: Number(volumes[index] ?? 0),
+      };
+    })
+    .filter(Boolean);
+
+  if (candles.length === 0) {
+    throw new Error("Finnhub returned no candle data.");
+  }
+
+  const uniqueCandles = Array.from(new Map(candles.map((candle) => [candle.time, candle])).values()).sort((a, b) => a.time - b.time);
+
+  if (uniqueCandles.length < 100) {
+    throw new Error("Finnhub returned insufficient candle history.");
+  }
+
+  return uniqueCandles;
 };
 
 const fetchQuoteWithFallback = async (symbol) => {
@@ -268,9 +513,9 @@ export const getQuotes = async (symbols = []) => {
 };
 
 export const getMarketSnapshot = async () => {
-  const symbols = Object.keys(MOCK_STOCKS);
+  const symbols = getPopularStocks().map((stock) => stock.symbol);
   const quotes = await getQuotes(symbols);
-  const overallChange = quotes.reduce((sum, quote) => sum + quote.change, 0) / quotes.length;
+  const overallChange = quotes.reduce((sum, quote) => sum + quote.change, 0) / Math.max(quotes.length, 1);
 
   return {
     marketStatus: overallChange >= 0 ? "Bullish" : "Cautious",
@@ -285,7 +530,12 @@ export const getCandles = async (symbol, timeframe = "1H") => {
 
   try {
     return await fetchHistoricalCandles(key, timeframe);
-  } catch {
+  } catch (error) {
+    if (!warnedFinnhubFailure) {
+      warnedFinnhubFailure = true;
+      console.warn(`Finnhub history fetch failed for ${key}; using synthetic candles.`, error instanceof Error ? error.message : error);
+    }
+
     const quote = await getQuote(key);
     return createSyntheticCandles(key, quote.price, timeframe);
   }
@@ -299,3 +549,72 @@ export const getPriceHistory = async (symbol, timeframe = "1D") => {
     price: candle.close,
   }));
 };
+
+export const getAllStockSymbols = async (exchange = "US") => {
+  const normalized = normalizeExchange(exchange);
+  const cached = exchangeSymbolCache.get(normalized);
+
+  if (cached && Date.now() - cached.fetchedAt < 60 * 60 * 1000) {
+    return cached.symbols;
+  }
+
+  if (!FINNHUB_API_KEY) {
+    const fallback = getFallbackExchangeSymbols(normalized);
+    exchangeSymbolCache.set(normalized, { symbols: fallback, fetchedAt: Date.now() });
+    return fallback;
+  }
+
+  try {
+    const response = await fetchFinnhubJson(`${FINNHUB_BASE_URL}/stock/symbol?exchange=${encodeURIComponent(normalized)}&token=${FINNHUB_API_KEY}`);
+
+    if (!Array.isArray(response)) {
+      throw new Error("Finnhub returned an invalid symbol list.");
+    }
+
+    const symbols = response
+      .map(normalizeSymbolResult)
+      .filter(Boolean)
+      .sort((left, right) => left.symbol.localeCompare(right.symbol));
+
+    exchangeSymbolCache.set(normalized, { symbols, fetchedAt: Date.now() });
+    return symbols;
+  } catch (error) {
+    const fallback = getFallbackExchangeSymbols(normalized);
+    exchangeSymbolCache.set(normalized, { symbols: fallback, fetchedAt: Date.now() });
+
+    if (!warnedFinnhubFailure) {
+      warnedFinnhubFailure = true;
+      console.warn(`Finnhub symbol fetch failed for ${normalized}; using fallback symbols.`, error instanceof Error ? error.message : error);
+    }
+
+    return fallback;
+  }
+};
+
+export const searchStocks = async (query = "") => {
+  const normalized = String(query || "").trim().toUpperCase();
+
+  if (!normalized) {
+    return getPopularStocks();
+  }
+
+  const [usSymbols, nseSymbols] = await Promise.all([
+    getAllStockSymbols("US"),
+    getAllStockSymbols("NSE"),
+  ]);
+
+  const matches = [...usSymbols, ...nseSymbols].filter((item) => {
+    const haystack = `${item.symbol} ${item.name} ${item.description}`.toUpperCase();
+    return haystack.includes(normalized);
+  });
+
+  return matches.slice(0, 100);
+};
+
+export const getPopularStocks = () => POPULAR_STOCKS.map((item) => ({
+  symbol: item.symbol,
+  name: item.name,
+  exchange: item.exchange,
+  description: item.name,
+  type: item.type,
+}));

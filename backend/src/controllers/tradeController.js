@@ -9,9 +9,9 @@ export const buyStock = async (req, res) => {
 
   try {
     const userId = getUserId(req);
-    const { symbol, quantity, stockPrice } = req.body;
+    const { symbol, quantity } = req.body;
 
-    if (!userId || !symbol || !quantity || !stockPrice) {
+    if (!userId || !symbol || !quantity) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields.",
@@ -19,7 +19,7 @@ export const buyStock = async (req, res) => {
     }
 
     const quote = await getQuote(symbol);
-    const price = Number(stockPrice) || quote.price;
+    const price = quote.price;
     const totalCost = Number((Number(quantity) * price).toFixed(2));
 
     await client.query("BEGIN");
@@ -105,16 +105,18 @@ export const sellStock = async (req, res) => {
 
   try {
     const userId = getUserId(req);
-    const { symbol, quantity, stockPrice } = req.body;
+    const { symbol, quantity } = req.body;
 
-    if (!userId || !symbol || !quantity || !stockPrice) {
+    if (!userId || !symbol || !quantity) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields.",
       });
     }
 
-    const totalAmount = Number((Number(quantity) * Number(stockPrice)).toFixed(2));
+    const quote = await getQuote(symbol);
+    const price = quote.price;
+    const totalAmount = Number((Number(quantity) * price).toFixed(2));
     const tradeQty = Number(quantity);
 
     await client.query("BEGIN");
@@ -135,7 +137,7 @@ export const sellStock = async (req, res) => {
 
     await client.query(
       "INSERT INTO orders (user_id, symbol, order_type, quantity, price, total_amount, status) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [userId, symbol.toUpperCase(), "sell", tradeQty, Number(stockPrice), totalAmount, "completed"]
+      [userId, symbol.toUpperCase(), "sell", tradeQty, price, totalAmount, "completed"]
     );
 
     if (Number(holdingResult.rows[0].quantity) === tradeQty) {
@@ -158,7 +160,7 @@ export const sellStock = async (req, res) => {
       data: {
         symbol: symbol.toUpperCase(),
         quantity: Number(quantity),
-        price: Number(stockPrice),
+        price,
         totalAmount,
         remainingBalance: balanceResult.rows[0].balance,
       },

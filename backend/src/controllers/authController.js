@@ -131,10 +131,68 @@ export const login = async (req, res) => {
   }
 };
 
+export const demoLogin = async (_req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const email = "demo@tradepilot.local";
+    const name = "Demo Trader";
+    const password = "demo-account";
+
+    await client.query("BEGIN");
+
+    let userResult = await client.query("SELECT id FROM users WHERE email = $1", [email]);
+
+    if (userResult.rows.length === 0) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      userResult = await client.query(
+        "INSERT INTO users(name, email, password) VALUES($1, $2, $3) RETURNING id",
+        [name, email, hashedPassword]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO user_preferences(user_id, default_order_type)
+       VALUES($1, 'MARKET')
+       ON CONFLICT (user_id) DO NOTHING`,
+      [userResult.rows[0].id]
+    );
+
+    await client.query("COMMIT");
+
+    const token = createToken(userResult.rows[0].id);
+    const responseUser = await buildUserResponse(userResult.rows[0].id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Demo account ready.",
+      token,
+      user: responseUser,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  } finally {
+    client.release();
+  }
+};
+
 export const getProfile = async (req, res) => {
+  const user = await buildUserResponse(req.user.id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found.",
+    });
+  }
+
   return res.status(200).json({
     success: true,
-    user: req.user,
+    user,
   });
 };
 

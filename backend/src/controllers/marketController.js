@@ -1,4 +1,4 @@
-import { getCandles, getMarketSnapshot, getQuote, getQuotes } from "../services/stockService.js";
+import { getAllStockSymbols, getCandles, getMarketSnapshot, getPopularStocks, getQuote, getQuotes, searchStocks } from "../services/stockService.js";
 
 export const getSnapshot = async (_req, res) => {
   try {
@@ -64,6 +64,54 @@ export const getHistory = async (req, res) => {
         candles,
         generatedAt: new Date().toISOString(),
       },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getSymbols = async (req, res) => {
+  try {
+    const { exchange = "US" } = req.params;
+    const symbols = await getAllStockSymbols(exchange);
+
+    return res.status(200).json({
+      success: true,
+      data: symbols,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const searchSymbol = async (req, res) => {
+  try {
+    const { query = "" } = req.query;
+    const symbols = await searchStocks(query);
+
+    return res.status(200).json({
+      success: true,
+      data: symbols,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getPopular = async (_req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      data: getPopularStocks(),
     });
   } catch (error) {
     return res.status(500).json({
