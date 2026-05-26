@@ -1,0 +1,13 @@
+# Root repo ignores                # ← Remove or comment this
+/lovable-frontend-code/node_modules/
+lovable-frontend-code/dist/
+lovable-frontend-code/.env
+
+/backend/node_modules/
+backend/dist/
+backend/.env
+
+# General
+.env
+node_modules/
+dist/
